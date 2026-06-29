@@ -113,7 +113,7 @@ export default function ViewStudent() {
             <div className="shrink-0">
               {student.photo ? (
                 <img
-                  src={`${BASE_URL}${student.photo}`}
+                  src={student.photo}
                   className="h-32 w-32 rounded-2xl object-cover border-4 border-white shadow-md"
                   alt={student.name}
                 />
@@ -199,7 +199,7 @@ export default function ViewStudent() {
                     </p>
                     {achievement.certificate ? (
                       <a
-                        href={`${BASE_URL}${achievement.certificate}`}
+                        href={achievement.certificate}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition"

@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import catchAsync from "../utils/catchAsync";
 import ApiResponse from "../utils/ApiResponse";
 import * as achievementService from "../services/Achievement.service";
+import ApiError from "../utils/ApiError";
 
 export const createAchievement = catchAsync(async (req: Request, res: Response) => {
     const data = await achievementService.createAchievement(req.body);
@@ -87,7 +88,7 @@ export const uploadCertificate = catchAsync(
 
                 req.params.id,
 
-                req.file.filename
+                req.file.path
 
             );
 

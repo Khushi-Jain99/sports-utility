@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   XCircle,
   AlertTriangle,
-  Users,
   UserCheck,
   UserCog,
   Trophy,

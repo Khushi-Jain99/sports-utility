@@ -132,7 +132,7 @@ export const uploadPhoto = catchAsync(
         const student =
             await studentService.uploadStudentPhoto(
                 req.params.id,
-                req.file.filename
+                req.file.path
             );
 
         res.status(200).json(

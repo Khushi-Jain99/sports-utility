@@ -22,7 +22,7 @@ export const uploadExcel = catchAsync(
 
         const report =
             await excelService.uploadExcel(
-                req.file.path
+                req.file.buffer
             );
 
         return res.status(200).json(

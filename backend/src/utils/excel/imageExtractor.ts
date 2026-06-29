@@ -8,12 +8,12 @@ export interface ExtractedImage {
 }
 
 export const extractImages = async (
-    filePath: string
+    fileBuffer: Buffer
 ): Promise<Map<string, ExtractedImage>> => {
 
     const workbook = new ExcelJS.Workbook();
 
-    await workbook.xlsx.readFile(filePath);
+    await workbook.xlsx.load(fileBuffer);
 
     const imageMap = new Map<string, ExtractedImage>();
 

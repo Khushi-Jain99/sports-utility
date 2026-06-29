@@ -2,9 +2,6 @@ import Student from "../../models/Student";
 import Achievement from "../../models/Achievement";
 import { StudentExcelRow } from "./excelTypes";
 
-import fs from "fs/promises";
-import path from "path";
-
 export interface ImportReport {
     totalRows: number;
     studentsCreated: number;
@@ -90,26 +87,6 @@ export const importRows = async (
                 }
 
             );
-
-            if (
-    existingStudent &&
-    existingStudent.photo &&
-    row.photo &&
-    existingStudent.photo !== row.photo
-) {
-
-    try {
-
-        await fs.unlink(
-            path.join(
-                process.cwd(),
-                existingStudent.photo
-            )
-        );
-
-    } catch {}
-
-}
 
             if (!student) {
                 throw new Error("Unable to create/update student");

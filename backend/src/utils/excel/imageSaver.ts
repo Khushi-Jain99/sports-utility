@@ -1,13 +1,5 @@
-import fs from "fs/promises";
-import path from "path";
-import crypto from "crypto";
-
-export interface SaveImageOptions {
-    folder: "photos" | "certificates";
-    fileName: string;
-    extension: string;
-    buffer: Buffer;
-}
+import cloudinary from "../../config/cloudinary";
+import streamifier from "streamifier";
 
 export const saveImage = async ({
     folder,
@@ -16,25 +8,35 @@ export const saveImage = async ({
     buffer,
 }: SaveImageOptions): Promise<string> => {
 
-    const uploadDir = path.join(
-        process.cwd(),
-        "uploads",
-        folder
-    );
+    const folderName =
+        folder === "photos"
+            ? "sports-utility/photos"
+            : "sports-utility/certificates";
 
-    await fs.mkdir(uploadDir, {
-        recursive: true,
+    return new Promise((resolve, reject) => {
+
+        const uploadStream = cloudinary.uploader.upload_stream(
+            {
+                folder: folderName,
+                public_id: fileName,
+                resource_type: "image",
+            },
+            (error, result) => {
+
+                if (error) {
+                    return reject(error);
+                }
+
+                if (!result) {
+                    return reject(new Error("Cloudinary upload failed"));
+                }
+
+                resolve(result.secure_url);
+            }
+        );
+
+        streamifier.createReadStream(buffer).pipe(uploadStream);
+
     });
 
-    const uniqueName =
-        `${fileName}-${crypto.randomUUID()}.${extension}`;
-
-    const fullPath = path.join(
-        uploadDir,
-        uniqueName
-    );
-
-    await fs.writeFile(fullPath, buffer);
-
-    return `/uploads/${folder}/${uniqueName}`;
 };

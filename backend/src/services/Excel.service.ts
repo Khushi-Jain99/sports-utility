@@ -8,7 +8,6 @@ import { importRows } from "../utils/excel/importEngine";
 
 import { extractImages } from "../utils/excel/imageExtractor";
 import { saveImage } from "../utils/excel/imageSaver";
-import fs from "fs/promises";
 
 // ----------------------
 // Get Value
@@ -120,10 +119,13 @@ const parseExcelDate = (value: any): Date | undefined => {
 // ----------------------
 // Upload
 // ----------------------
-export const uploadExcel = async (filePath: string) => {
+export const uploadExcel = async (fileBuffer: Buffer) => {
 
-    const workbook = XLSX.readFile(filePath);
-    const imageMap = await extractImages(filePath);
+    const workbook = XLSX.read(fileBuffer, {
+    type: "buffer",
+});
+    const imageMap =
+    await extractImages(fileBuffer);
 
     const allRows: StudentExcelRow[] = [];
     const validationErrors: any[] = [];
@@ -208,16 +210,10 @@ const photoImage = imageMap.get(`${excelRowNumber}-2`);
 if (photoImage && row.admissionNo) {
 
     row.photo = await saveImage({
-
-        folder: "photos",
-
-        fileName: row.admissionNo,
-
-        extension: photoImage.extension,
-
-        buffer: photoImage.buffer,
-
-    });
+    folder: "photos",
+    fileName: row.admissionNo,
+    buffer: photoImage.buffer,
+});
 
 }
 
@@ -226,16 +222,10 @@ const certificateImage = imageMap.get(`${excelRowNumber}-13`);
 if (certificateImage && row.admissionNo) {
 
     row.certificate = await saveImage({
-
-        folder: "certificates",
-
-        fileName: `${row.admissionNo}-${Date.now()}`,
-
-        extension: certificateImage.extension,
-
-        buffer: certificateImage.buffer,
-
-    });
+    folder: "certificates",
+    fileName: `${row.admissionNo}-${Date.now()}`,
+    buffer: certificateImage.buffer,
+});
 
 }
 
@@ -269,11 +259,6 @@ report.totalRows =
     allRows.length + validationErrors.length;
 
 // Delete uploaded Excel after processing
-try {
-    await fs.unlink(filePath);
-} catch (err) {
-    console.error("Unable to delete uploaded Excel:", err);
-}
 
 return {
 

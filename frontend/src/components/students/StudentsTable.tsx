@@ -1,7 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { deleteStudent } from "../../api/studentApi";
-import toast from "react-hot-toast";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import { Eye, Pencil,  } from "lucide-react";
 
 const BASE_URL = "http://localhost:5000";
 
@@ -10,23 +8,8 @@ interface Props {
   refreshStudents: () => void;
 }
 
-export default function StudentsTable({ students, refreshStudents }: Props) {
+export default function StudentsTable({ students,  }: Props) {
   const navigate = useNavigate();
-
-  const handleDelete = async (id: string) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this student?"
-    );
-    if (!confirmDelete) return;
-    try {
-      await deleteStudent(id);
-      toast.success("Student deleted successfully");
-      refreshStudents();
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to delete student");
-    }
-  };
 
   return (
     <div className="overflow-x-auto">
@@ -47,7 +30,7 @@ export default function StudentsTable({ students, refreshStudents }: Props) {
                 <div className="flex items-center gap-3">
                   {student.photo ? (
                     <img
-                      src={`${BASE_URL}${student.photo}`}
+                      src={student.photo}
                       className="h-9 w-9 rounded-full object-cover border-2 border-slate-100 shrink-0"
                       alt={student.name}
                     />
@@ -85,14 +68,6 @@ export default function StudentsTable({ students, refreshStudents }: Props) {
                   >
                     <Pencil size={12} />
                     Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(student._id)}
-                    title="Delete"
-                    className="inline-flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
-                  >
-                    <Trash2 size={12} />
-                    Delete
                   </button>
                 </div>
               </td>

@@ -1,79 +1,29 @@
-
 import multer from "multer";
-import path from "path";
-import fs from "fs";
-
-// Create folder if it doesn't exist
-const createFolder = (folderPath: string) => {
-    if (!fs.existsSync(folderPath)) {
-        fs.mkdirSync(folderPath, { recursive: true });
-    }
-};
-
-// Photo storage
-const photoStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const folder = "uploads/photos";
-        createFolder(folder);
-        cb(null, folder);
-    },
-
-    filename: (req, file, cb) => {
-        const uniqueName =
-            Date.now() + "-" + Math.round(Math.random() * 1e9);
-
-        cb(
-            null,
-            uniqueName + path.extname(file.originalname)
-        );
-    },
-});
-
-// Certificate storage
-const certificateStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const folder = "uploads/certificates";
-        createFolder(folder);
-        cb(null, folder);
-    },
-
-    filename: (req, file, cb) => {
-        const uniqueName =
-            Date.now() + "-" + Math.round(Math.random() * 1e9);
-
-        cb(
-            null,
-            uniqueName + path.extname(file.originalname)
-        );
-    },
-});
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import cloudinary from "../config/cloudinary";
 
 const imageFilter: multer.Options["fileFilter"] = (req, file, cb) => {
-    const allowedTypes = [
+    const allowed = [
         "image/jpeg",
         "image/png",
         "image/jpg",
         "image/webp",
     ];
 
-    if (allowedTypes.includes(file.mimetype)) {
+    if (allowed.includes(file.mimetype)) {
         cb(null, true);
     } else {
         cb(new Error("Only image files are allowed"));
     }
 };
 
-export const uploadPhoto = multer({
-    storage: photoStorage,
-    fileFilter: imageFilter,
-    limits: {
-        fileSize: 2 * 1024 * 1024, // 2 MB
-    },
-});
+const certificateFilter: multer.Options["fileFilter"] = (
+    req,
+    file,
+    cb
+) => {
 
-const certificateFilter: multer.Options["fileFilter"] = (req, file, cb) => {
-
-    const allowedTypes = [
+    const allowed = [
         "application/pdf",
         "image/jpeg",
         "image/png",
@@ -81,13 +31,68 @@ const certificateFilter: multer.Options["fileFilter"] = (req, file, cb) => {
         "image/webp",
     ];
 
-    if (allowedTypes.includes(file.mimetype)) {
+    if (allowed.includes(file.mimetype)) {
         cb(null, true);
     } else {
         cb(new Error("Only PDF and Image files are allowed"));
     }
 
 };
+
+// --------------------
+// Student Photos
+// --------------------
+
+const photoStorage = new CloudinaryStorage({
+    cloudinary,
+
+    params: async () => ({
+
+        folder: "sports-utility/photos",
+
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
+
+        resource_type: "image",
+
+    }),
+
+});
+
+// --------------------
+// Certificates
+// --------------------
+
+const certificateStorage = new CloudinaryStorage({
+    cloudinary,
+
+    params: async (_req, file) => ({
+
+        folder: "sports-utility/certificates",
+
+        resource_type:
+            file.mimetype === "application/pdf"
+                ? "raw"
+                : "image",
+
+    }),
+
+});
+
+// --------------------
+// Upload Middlewares
+// --------------------
+
+export const uploadPhoto = multer({
+
+    storage: photoStorage,
+
+    fileFilter: imageFilter,
+
+    limits: {
+        fileSize: 2 * 1024 * 1024,
+    },
+
+});
 
 export const uploadCertificate = multer({
 
@@ -101,28 +106,10 @@ export const uploadCertificate = multer({
 
 });
 
-const excelStorage = multer.diskStorage({
-
-    destination(req, file, cb) {
-
-        const folder = "uploads/excel";
-
-        createFolder(folder);
-
-        cb(null, folder);
-
-    },
-
-    filename(req, file, cb) {
-
-        const uniqueName =
-            Date.now() + "-" + file.originalname;
-
-        cb(null, uniqueName);
-
-    },
-
-});
+// --------------------
+// Excel Upload
+// (Keep disk storage for now)
+// --------------------
 
 const excelFilter: multer.Options["fileFilter"] = (
     req,
@@ -131,35 +118,26 @@ const excelFilter: multer.Options["fileFilter"] = (
 ) => {
 
     const allowedTypes = [
-
         "application/vnd.ms-excel",
-
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-
     ];
 
     if (allowedTypes.includes(file.mimetype)) {
-
         cb(null, true);
-
     } else {
-
         cb(new Error("Only Excel files are allowed"));
-
     }
 
 };
 
 export const uploadExcel = multer({
 
-    storage: excelStorage,
+    storage: multer.memoryStorage(),
 
     fileFilter: excelFilter,
 
     limits: {
-
         fileSize: 10 * 1024 * 1024,
-
     },
 
 });

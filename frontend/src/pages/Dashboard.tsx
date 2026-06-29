@@ -91,7 +91,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-blue-900 p-8 text-white shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-slate-900 via-slate-800 to-blue-900 p-8 text-white shadow-lg">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute -top-10 -right-10 w-64 h-64 rounded-full border border-white" />
           <div className="absolute -bottom-16 -left-8 w-72 h-72 rounded-full border border-blue-300" />
@@ -170,7 +170,7 @@ export default function Dashboard() {
                   <td className="px-6 py-3">
                     {student.photo ? (
                       <img
-                        src={`${BASE_URL}${student.photo}`}
+                        src={student.photo}
                         className="h-9 w-9 rounded-full object-cover border-2 border-slate-100"
                         alt={student.name}
                       />
@@ -225,7 +225,7 @@ export default function Dashboard() {
                       <div className="flex items-center gap-2">
                         {a.student?.photo ? (
                           <img
-                            src={`${BASE_URL}${a.student.photo}`}
+                            src={a.student.photo}
                             className="h-7 w-7 rounded-full object-cover border border-slate-100"
                             alt={a.student?.name}
                           />

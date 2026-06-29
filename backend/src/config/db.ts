@@ -1,6 +1,13 @@
 
 import mongoose from "mongoose";
 
+const dns = require('dns')
+
+dns.setServers([
+  '1.1.1.1',
+  '8.8.8.8'
+])
+
 const connectDB = async (): Promise<void> => {
   try {
     await mongoose.connect(process.env.MONGO_URI as string);

@@ -133,44 +133,27 @@ export const deleteAchievement = async (id: string) => {
 };
 
 export const uploadCertificate = async (
-
     id: string,
-
-    filename: string
-
+    certificateUrl: string
 ) => {
 
     const achievement = await Achievement.findOneAndUpdate(
-
         {
-
             _id: id,
-
             isDeleted: false,
-
         },
-
         {
-
-            certificate: `/uploads/certificates/${filename}`,
-
+            certificate: certificateUrl,
         },
-
         {
-
             new: true,
-
         }
-
     );
 
     if (!achievement) {
-
         throw new ApiError(404, "Achievement not found");
-
     }
 
     return achievement;
-
 };
 

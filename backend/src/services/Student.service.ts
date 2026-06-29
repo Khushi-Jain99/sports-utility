@@ -127,7 +127,7 @@ export const deleteStudent = async (id: string) => {
 
 export const uploadStudentPhoto = async (
     id: string,
-    filename: string
+    photoUrl: string
 ) => {
 
     const student = await Student.findOneAndUpdate(
@@ -136,7 +136,7 @@ export const uploadStudentPhoto = async (
             isDeleted: false,
         },
         {
-            photo: `/uploads/photos/${filename}`,
+            photo: photoUrl,
         },
         {
             new: true,
