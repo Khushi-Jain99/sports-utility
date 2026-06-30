@@ -6,11 +6,28 @@ import Achievement from "../models/Achievement";
 import ApiError from "../utils/ApiError";
 
 export const createStudent = async (data: Partial<IStudent>) => {
+    const admissionNo = data.admissionNo?.trim();
 
-    const student = await Student.create(data);
+    const student = await Student.findOneAndUpdate(
+        {
+            admissionNo,
+            isDeleted: false,
+        },
+        {
+            $set: {
+                ...data,
+                admissionNo,
+            },
+        },
+        {
+            new: true,
+            upsert: true,
+            runValidators: true,
+            setDefaultsOnInsert: true,
+        }
+    );
 
     return student;
-
 };
 
 export const getAllStudents = async (

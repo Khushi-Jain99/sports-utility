@@ -71,10 +71,10 @@ export const getAllAchievements = async (
     }
 
     const achievements = await Achievement.find(query)
-        .populate(
-            "student",
-            "name admissionNo class photo"
-        )
+    .populate(
+        "student",
+        "name admissionNo class photo dob phone"
+    )
         .sort({
             date: -1,
         })

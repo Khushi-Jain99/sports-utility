@@ -29,7 +29,7 @@ export const getDashboardData = async () => {
   const recentAchievements = await Achievement.find({
     isDeleted: false,
   })
-    .populate("student", "name admissionNo class photo")
+    .populate("student", "name admissionNo class photo dob phone")
     .sort({ createdAt: -1 })
     .limit(5)
     .select("game competition results date certificate student");
