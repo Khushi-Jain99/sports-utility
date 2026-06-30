@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { getStudentById, updateStudent, uploadStudentPhoto } from "../api/studentApi";
 import { updateAchievement, uploadCertificate } from "../api/achievementApi";
+import { addNotification } from "../utils/notificationHelper";
 import StudentSection from "../components/edit/StudentSection";
 import AchievementSection from "../components/edit/AchievementSection";
 import ActionButtons from "../components/edit/ActionButtons";
@@ -103,6 +104,11 @@ export default function EditStudent() {
         if (certificate) await uploadCertificate(achievementId, certificate);
       }
       toast.success("Student updated successfully");
+      addNotification(
+        "Athlete Updated",
+        `Details and achievements updated for ${formData.name} (${formData.admissionNo}).`,
+        "info"
+      );
       navigate("/achievements");
     } catch (error: any) {
       console.error(error);

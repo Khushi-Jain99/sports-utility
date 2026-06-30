@@ -1,18 +1,13 @@
-import { useEffect, useState } from "react";
-import { getStudents, getStudentById } from "../api/studentApi";
+import { useEffect, useState, useRef } from "react";
+import { getStudentById } from "../api/studentApi";
+import { getAchievements } from "../api/achievementApi";
 import {
   User,
-  Info,
-  Trophy,
-  ExternalLink,
   Gamepad2,
-  Award,
-  ShoppingBag,
-  ArrowRight,
   FileText,
-  Calendar,
-  GraduationCap,
   MoreVertical,
+  ChevronDown,
+  Search,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -21,6 +16,37 @@ export default function Dashboard() {
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
+
+  // Search option state
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const selectedStudent = students.find((st) => st._id === selectedStudentId);
+  const selectedStudentText = selectedStudent ? `${selectedStudent.name} (${selectedStudent.admissionNo})` : "";
+
+  // Sync search input with selected student on selection change
+  useEffect(() => {
+    if (selectedStudentText) {
+      setSearchQuery(selectedStudentText);
+    }
+  }, [selectedStudentText]);
+
+  // Close search dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setSearchOpen(false);
+        if (selectedStudentText) {
+          setSearchQuery(selectedStudentText);
+        }
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [selectedStudentText]);
 
   // Student specific data
   const [student, setStudent] = useState<any>(null);
@@ -31,12 +57,27 @@ export default function Dashboard() {
     const loadStudents = async () => {
       try {
         setLoading(true);
-        const res = await getStudents({ limit: 1000, sortBy: "name", order: "asc" });
-        const list = res.data.data.students || [];
-        setStudents(list);
+        // Load achievements to extract unique active student profiles
+        const res = await getAchievements({ limit: 1000 });
+        const list = res.data.data.achievements || [];
 
-        if (list.length > 0) {
-          setSelectedStudentId(list[0]._id);
+        const activeStudentsMap = new Map<string, any>();
+        list.forEach((ach: any) => {
+          if (ach.student && !ach.student.isDeleted) {
+            const admissionNoKey = ach.student.admissionNo.toLowerCase().trim();
+            if (!activeStudentsMap.has(admissionNoKey)) {
+              activeStudentsMap.set(admissionNoKey, ach.student);
+            }
+          }
+        });
+
+        const uniqueActiveStudents = Array.from(activeStudentsMap.values());
+        // Sort students alphabetically by name
+        uniqueActiveStudents.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        setStudents(uniqueActiveStudents);
+
+        if (uniqueActiveStudents.length > 0) {
+          setSelectedStudentId(uniqueActiveStudents[0]._id);
         } else {
           setLoading(false);
         }
@@ -145,6 +186,15 @@ export default function Dashboard() {
     );
   }
 
+  const isSearching = searchQuery !== "" && searchQuery !== selectedStudentText;
+  const filteredStudents = isSearching
+    ? students.filter(
+        (st) =>
+          (st.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (st.admissionNo || "").toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : students;
+
   const athleteSport = achievements.length > 0 ? achievements[0].game : "General Sports";
   const mockInventory = getMockInventory(athleteSport);
   const mockTraining = getMockTraining(athleteSport);
@@ -163,22 +213,67 @@ export default function Dashboard() {
           </h2>
         </div>
 
-        {/* Dropdown element */}
+        {/* Search option element */}
         <div className="flex items-center gap-2">
           <label className="text-xs font-bold text-slate-500 shrink-0">
-            Select Athlete:
+            Search Athlete:
           </label>
-          <select
-            value={selectedStudentId}
-            onChange={(e) => setSelectedStudentId(e.target.value)}
-            className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs text-slate-700 font-extrabold focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/65 transition cursor-pointer max-w-xs truncate shadow-xs"
-          >
-            {students.map((st) => (
-              <option key={st._id} value={st._id}>
-                {st.name} ({st.admissionNo})
-              </option>
-            ))}
-          </select>
+          <div className="relative" ref={dropdownRef}>
+            <div className="relative flex items-center">
+              <Search size={14} className="text-slate-400 absolute left-3.5 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search name or ID..."
+                value={searchQuery}
+                onFocus={(e) => {
+                  e.target.select();
+                  setSearchOpen(true);
+                }}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSearchOpen(true);
+                }}
+                className="w-64 bg-white border border-slate-200 rounded-xl pl-9.5 pr-8 py-2 text-xs text-slate-700 font-extrabold focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/65 transition cursor-text shadow-xs"
+              />
+              <ChevronDown size={14} className="text-slate-400 absolute right-3 pointer-events-none" />
+            </div>
+
+            {searchOpen && (
+              <div className="absolute right-0 mt-1 w-64 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100">
+                {/* Options list */}
+                <div className="max-h-60 overflow-y-auto py-1">
+                  {filteredStudents.length === 0 ? (
+                    <div className="px-4 py-3 text-xs text-slate-400 text-center font-medium">
+                      No athletes found
+                    </div>
+                  ) : (
+                    filteredStudents.map((st) => {
+                      const isSelected = st._id === selectedStudentId;
+                      return (
+                        <button
+                          key={st._id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedStudentId(st._id);
+                            setSearchOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-2 text-xs font-bold transition flex items-center justify-between ${
+                            isSelected
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "text-slate-700 hover:bg-slate-50"
+                          }`}
+                        >
+                          <span className="truncate">
+                            {st.name} ({st.admissionNo})
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getAchievements, deleteAchievement } from "../api/achievementApi";
-import { getStudents, deleteStudent } from "../api/studentApi";
 import { uploadExcel } from "../api/excelApi";
+import { addNotification } from "../utils/notificationHelper";
 import {
   Search,
   Trophy,
@@ -12,13 +12,12 @@ import {
   FileSpreadsheet,
   FileDown,
   Printer,
-  Database,
   Upload,
   RefreshCw,
   FileText,
-  AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Eye,
 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -32,27 +31,48 @@ export default function Students() {
   const [filteredAchievements, setFilteredAchievements] = useState<any[]>([]);
 
   // Filter Dropdowns Lists
-  const [courses, setCourses] = useState<string[]>([]);
   const [sports, setSports] = useState<string[]>([]);
   const [venues, setVenues] = useState<string[]>([]);
-  const [years, setYears] = useState<string[]>([]);
+  const [results, setResults] = useState<string[]>([]);
 
   // Filter States
-  const [search, setSearch] = useState("");
-  const [courseFilter, setCourseFilter] = useState("");
-  const [semesterFilter, setSemesterFilter] = useState("");
-  const [sectionFilter, setSectionFilter] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [search, setSearch] = useState(searchParams.get("search") || "");
   const [sportFilter, setSportFilter] = useState("");
-  const [zoneFilter, setZoneFilter] = useState("");
   const [venueFilter, setVenueFilter] = useState("");
-  const [yearFilter, setYearFilter] = useState("");
+  const [resultFilter, setResultFilter] = useState("");
+  const [activeHeaderDropdown, setActiveHeaderDropdown] = useState<'game' | 'venue' | 'result' | null>(null);
+
+  // Sync search state with searchParams
+  useEffect(() => {
+    const q = searchParams.get("search") || "";
+    setSearch(q);
+  }, [searchParams]);
+
+  const handleLocalSearchChange = (val: string) => {
+    setSearch(val);
+    if (val) {
+      setSearchParams(
+        (prev) => {
+          prev.set("search", val);
+          return prev;
+        },
+        { replace: true }
+      );
+    } else {
+      setSearchParams(
+        (prev) => {
+          prev.delete("search");
+          return prev;
+        },
+        { replace: true }
+      );
+    }
+  };
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
-
-  // DB Operations
-  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
 
   const loadData = async () => {
     try {
@@ -63,29 +83,19 @@ export default function Students() {
       setFilteredAchievements(list);
 
       // Extract unique list for filter dropdowns dynamically
-      const uniqueCourses = new Set<string>();
       const uniqueSports = new Set<string>();
       const uniqueVenues = new Set<string>();
-      const uniqueYears = new Set<string>();
+      const uniqueResults = new Set<string>();
 
       list.forEach((ach: any) => {
-        if (ach.student?.class) {
-          // Normalize course name from student class
-          const course = ach.student.class.trim();
-          uniqueCourses.add(course);
-        }
         if (ach.game) uniqueSports.add(ach.game.trim());
         if (ach.venue) uniqueVenues.add(ach.venue.trim());
-        if (ach.date) {
-          const yr = new Date(ach.date).getFullYear().toString();
-          uniqueYears.add(yr);
-        }
+        if (ach.results) uniqueResults.add(ach.results.trim());
       });
 
-      setCourses(Array.from(uniqueCourses));
-      setSports(Array.from(uniqueSports));
-      setVenues(Array.from(uniqueVenues));
-      setYears(Array.from(uniqueYears).sort((a, b) => b.localeCompare(a)));
+      setSports(Array.from(uniqueSports).sort((a, b) => a.localeCompare(b)));
+      setVenues(Array.from(uniqueVenues).sort((a, b) => a.localeCompare(b)));
+      setResults(Array.from(uniqueResults).sort((a, b) => a.localeCompare(b)));
     } catch (err) {
       console.error(err);
       toast.error("Failed to load achievements records");
@@ -114,40 +124,27 @@ export default function Students() {
       );
     }
 
-    // Select dropdown filters
-    if (courseFilter) {
-      result = result.filter((ach) => ach.student?.class === courseFilter);
-    }
+    // Table Header select dropdown filters
     if (sportFilter) {
       result = result.filter((ach) => ach.game === sportFilter);
     }
     if (venueFilter) {
       result = result.filter((ach) => ach.venue === venueFilter);
     }
-    if (zoneFilter) {
-      result = result.filter((ach) =>
-        ach.results?.toLowerCase().includes(zoneFilter.toLowerCase())
-      );
-    }
-    if (yearFilter) {
-      result = result.filter(
-        (ach) => ach.date && new Date(ach.date).getFullYear().toString() === yearFilter
-      );
+    if (resultFilter) {
+      result = result.filter((ach) => ach.results === resultFilter);
     }
 
     setFilteredAchievements(result);
     setCurrentPage(1); // Reset page to 1 on filter
-  }, [search, courseFilter, sportFilter, venueFilter, zoneFilter, yearFilter, achievements]);
+  }, [search, sportFilter, venueFilter, resultFilter, achievements]);
 
   const handleResetFilters = () => {
     setSearch("");
-    setCourseFilter("");
-    setSemesterFilter("");
-    setSectionFilter("");
+    setSearchParams({}, { replace: true });
     setSportFilter("");
-    setZoneFilter("");
     setVenueFilter("");
-    setYearFilter("");
+    setResultFilter("");
   };
 
   // Pagination indices
@@ -213,22 +210,7 @@ export default function Students() {
     window.print();
   };
 
-  const handleBackupJSON = () => {
-    if (filteredAchievements.length === 0) {
-      toast.error("No records to backup");
-      return;
-    }
-    const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
-      JSON.stringify(filteredAchievements, null, 2)
-    )}`;
-    const downloadAnchor = document.createElement("a");
-    downloadAnchor.setAttribute("href", jsonString);
-    downloadAnchor.setAttribute("download", `Sports_DB_Backup_${Date.now()}.json`);
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    document.body.removeChild(downloadAnchor);
-    toast.success("Database JSON backup downloaded successfully");
-  };
+
 
   // Direct Excel Upload Handler
   const handleExcelImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -239,6 +221,11 @@ export default function Students() {
       setLoading(true);
       await uploadExcel(file);
       toast.success("Excel imported successfully!");
+      addNotification(
+        "Excel Imported",
+        `Successfully processed and imported sports achievement records from spreadsheet.`,
+        "success"
+      );
       loadData();
     } catch (err: any) {
       console.error(err);
@@ -259,6 +246,11 @@ export default function Students() {
       await deleteAchievement(ach._id);
       // If student has no other achievements, we can delete the student record too, or just let them manage it
       toast.success("Record deleted successfully");
+      addNotification(
+        "Record Deleted",
+        `Deleted achievement record in ${ach.game} for ${ach.student?.name || "Athlete"} (${ach.student?.admissionNo || "N/A"}).`,
+        "warning"
+      );
       loadData();
     } catch (err) {
       console.error(err);
@@ -267,32 +259,7 @@ export default function Students() {
     }
   };
 
-  // Reset entire Database (sequential soft delete of all records)
-  const handleResetDB = async () => {
-    try {
-      setLoading(true);
-      setResetConfirmOpen(false);
 
-      // Soft delete all achievements
-      for (const ach of achievements) {
-        await deleteAchievement(ach._id);
-      }
-
-      // Soft delete all students
-      const studentsRes = await getStudents({ limit: 1000 });
-      const studentsList = studentsRes.data.data.students || [];
-      for (const st of studentsList) {
-        await deleteStudent(st._id);
-      }
-
-      toast.success("Database reset successful. All records soft deleted.");
-      loadData();
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to reset database");
-      setLoading(false);
-    }
-  };
 
   if (loading && achievements.length === 0) {
     return (
@@ -326,136 +293,10 @@ export default function Students() {
           onClick={loadData}
           className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-650 hover:bg-slate-50 transition cursor-pointer"
         >
-          <RefreshCw size={14} />
         </button>
       </div>
 
-      {/* Filter Bar Panel (Hidden on Print) */}
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs space-y-4 print:hidden">
-        {/* Row 1 Filter Selects */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {/* Search Input */}
-          <div className="relative flex items-center lg:col-span-1">
-            <Search size={14} className="text-slate-400 absolute left-3.5" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search name, admission no, game..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9.5 pr-4 py-2.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/60 focus:bg-white transition"
-            />
-          </div>
 
-          {/* Course */}
-          <select
-            value={courseFilter}
-            onChange={(e) => setCourseFilter(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-500 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/60 focus:bg-white transition cursor-pointer"
-          >
-            <option value="">Course</option>
-            {courses.map((course) => (
-              <option key={course} value={course}>
-                {course}
-              </option>
-            ))}
-          </select>
-
-          {/* Semester (Mock/Empty placeholder) */}
-          <select
-            value={semesterFilter}
-            onChange={(e) => setSemesterFilter(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-500 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/60 focus:bg-white transition cursor-pointer"
-          >
-            <option value="">Semester</option>
-            <option value="1">Semester 1</option>
-            <option value="2">Semester 2</option>
-            <option value="3">Semester 3</option>
-            <option value="4">Semester 4</option>
-            <option value="5">Semester 5</option>
-            <option value="6">Semester 6</option>
-          </select>
-
-          {/* Section (Mock/Empty placeholder) */}
-          <select
-            value={sectionFilter}
-            onChange={(e) => setSectionFilter(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-500 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/60 focus:bg-white transition cursor-pointer"
-          >
-            <option value="">Section</option>
-            <option value="A">Section A</option>
-            <option value="B">Section B</option>
-          </select>
-
-          {/* Sport */}
-          <select
-            value={sportFilter}
-            onChange={(e) => setSportFilter(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-500 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/60 focus:bg-white transition cursor-pointer"
-          >
-            <option value="">Sport</option>
-            {sports.map((sp) => (
-              <option key={sp} value={sp}>
-                {sp}
-              </option>
-            ))}
-          </select>
-
-          {/* Zone / Level */}
-          <select
-            value={zoneFilter}
-            onChange={(e) => setZoneFilter(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-500 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/60 focus:bg-white transition cursor-pointer"
-          >
-            <option value="">Zone / Level</option>
-            <option value="Gold">Gold Medal</option>
-            <option value="Silver">Silver Medal</option>
-            <option value="Bronze">Bronze Medal</option>
-            <option value="Participation">Participation</option>
-            <option value="Inter-College">Inter-College</option>
-            <option value="National">National</option>
-            <option value="International">International</option>
-          </select>
-        </div>
-
-        {/* Row 2 Filter Selects */}
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 lg:w-[66.6%]">
-          {/* Venue */}
-          <select
-            value={venueFilter}
-            onChange={(e) => setVenueFilter(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-500 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/60 focus:bg-white transition cursor-pointer"
-          >
-            <option value="">Venue</option>
-            {venues.map((vn) => (
-              <option key={vn} value={vn}>
-                {vn}
-              </option>
-            ))}
-          </select>
-
-          {/* Year */}
-          <select
-            value={yearFilter}
-            onChange={(e) => setYearFilter(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-500 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/60 focus:bg-white transition cursor-pointer"
-          >
-            <option value="">Year</option>
-            {years.map((yr) => (
-              <option key={yr} value={yr}>
-                {yr}
-              </option>
-            ))}
-          </select>
-
-          {/* Reset Filters */}
-          <button
-            onClick={handleResetFilters}
-            className="w-full bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 transition cursor-pointer"
-          >
-            Reset Filters
-          </button>
-        </div>
-      </div>
 
       {/* Action Buttons Row (Hidden on Print) */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4.5 print:hidden">
@@ -488,14 +329,7 @@ export default function Students() {
             Print List
           </button>
 
-          {/* Backup JSON */}
-          <button
-            onClick={handleBackupJSON}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer shadow-xs"
-          >
-            <Database size={14} />
-            Backup JSON
-          </button>
+
         </div>
 
         {/* Right Side Create & Reset */}
@@ -527,51 +361,8 @@ export default function Students() {
             Add Record
           </button>
 
-          {/* Reset DB */}
-          <button
-            onClick={() => setResetConfirmOpen(true)}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-white hover:bg-red-50 border border-orange-500/30 text-orange-600 hover:text-red-750 text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer shadow-xs"
-          >
-            <RefreshCw size={14} />
-            Reset DB
-          </button>
         </div>
       </div>
-
-      {/* Database Reset Confirmation Modal */}
-      {resetConfirmOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
-            onClick={() => setResetConfirmOpen(false)}
-          />
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-2xl max-w-md w-full z-10 space-y-4">
-            <div className="flex items-center gap-2.5 text-orange-600">
-              <AlertTriangle size={24} />
-              <h4 className="text-sm font-extrabold text-slate-800">
-                Warning: Reset Database
-              </h4>
-            </div>
-            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-              This action will soft-delete all registered students and their sports achievements in the system database. This cannot be undone. Are you sure you want to proceed?
-            </p>
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                onClick={() => setResetConfirmOpen(false)}
-                className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100 transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleResetDB}
-                className="px-4 py-2 bg-orange-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition cursor-pointer"
-              >
-                Reset Database
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Main Records Table Container */}
       <div className="bg-white border border-slate-200/80 rounded-3xl overflow-hidden shadow-xs print:border-0 print:shadow-none">
@@ -585,11 +376,134 @@ export default function Students() {
                 <th className="px-4 py-3.5">Class</th>
                 <th className="px-4 py-3.5">Admission No.</th>
                 <th className="px-4 py-3.5">Date of Birth</th>
-                <th className="px-4 py-3.5">Game</th>
+                <th className="px-4 py-3.5 relative">
+                  <div
+                    className="flex items-center gap-1.5 cursor-pointer select-none"
+                    onClick={() => setActiveHeaderDropdown(activeHeaderDropdown === 'game' ? null : 'game')}
+                  >
+                    <span className={sportFilter ? 'text-emerald-700 font-extrabold' : ''}>GAME</span>
+                    <ChevronDown size={11} className={`transition-transform duration-200 ${sportFilter ? 'text-emerald-700 font-extrabold' : 'text-slate-400'} ${activeHeaderDropdown === 'game' ? 'rotate-180' : ''}`} />
+                  </div>
+
+                  {activeHeaderDropdown === 'game' && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setActiveHeaderDropdown(null)} />
+                      <div className="absolute left-4 mt-2.5 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-50 text-left font-semibold text-slate-700 normal-case animate-in fade-in slide-in-from-top-2 duration-150">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSportFilter("");
+                            setActiveHeaderDropdown(null);
+                          }}
+                          className={`w-full text-left px-4 py-1.5 text-xs transition ${!sportFilter ? 'bg-emerald-50 text-emerald-700 font-extrabold' : 'hover:bg-slate-50'}`}
+                        >
+                          All Games
+                        </button>
+                        <div className="max-h-48 overflow-y-auto divide-y divide-slate-50">
+                          {sports.map((sport) => (
+                            <button
+                              key={sport}
+                              type="button"
+                              onClick={() => {
+                                setSportFilter(sport);
+                                setActiveHeaderDropdown(null);
+                              }}
+                              className={`w-full text-left px-4 py-1.5 text-xs transition truncate ${sportFilter === sport ? 'bg-emerald-50 text-emerald-700 font-extrabold' : 'hover:bg-slate-50'}`}
+                            >
+                              {sport}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </th>
                 <th className="px-5 py-3.5">Competition Name</th>
-                <th className="px-4 py-3.5">Venue</th>
+                <th className="px-4 py-3.5 relative">
+                  <div
+                    className="flex items-center gap-1.5 cursor-pointer select-none"
+                    onClick={() => setActiveHeaderDropdown(activeHeaderDropdown === 'venue' ? null : 'venue')}
+                  >
+                    <span className={venueFilter ? 'text-emerald-700 font-extrabold' : ''}>VENUE</span>
+                    <ChevronDown size={11} className={`transition-transform duration-200 ${venueFilter ? 'text-emerald-700 font-extrabold' : 'text-slate-400'} ${activeHeaderDropdown === 'venue' ? 'rotate-180' : ''}`} />
+                  </div>
+
+                  {activeHeaderDropdown === 'venue' && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setActiveHeaderDropdown(null)} />
+                      <div className="absolute left-4 mt-2.5 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-50 text-left font-semibold text-slate-700 normal-case animate-in fade-in slide-in-from-top-2 duration-150">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setVenueFilter("");
+                            setActiveHeaderDropdown(null);
+                          }}
+                          className={`w-full text-left px-4 py-1.5 text-xs transition ${!venueFilter ? 'bg-emerald-50 text-emerald-700 font-extrabold' : 'hover:bg-slate-50'}`}
+                        >
+                          All Venues
+                        </button>
+                        <div className="max-h-48 overflow-y-auto divide-y divide-slate-50">
+                          {venues.map((vn) => (
+                            <button
+                              key={vn}
+                              type="button"
+                              onClick={() => {
+                                setVenueFilter(vn);
+                                setActiveHeaderDropdown(null);
+                              }}
+                              className={`w-full text-left px-4 py-1.5 text-xs transition truncate ${venueFilter === vn ? 'bg-emerald-50 text-emerald-700 font-extrabold' : 'hover:bg-slate-50'}`}
+                            >
+                              {vn}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </th>
                 <th className="px-4 py-3.5">Date</th>
-                <th className="px-4 py-3.5 text-center">Result</th>
+                <th className="px-4 py-3.5 relative">
+                  <div
+                    className="flex items-center justify-center gap-1.5 cursor-pointer select-none"
+                    onClick={() => setActiveHeaderDropdown(activeHeaderDropdown === 'result' ? null : 'result')}
+                  >
+                    <span className={resultFilter ? 'text-emerald-700 font-extrabold' : ''}>RESULT</span>
+                    <ChevronDown size={11} className={`transition-transform duration-200 ${resultFilter ? 'text-emerald-700 font-extrabold' : 'text-slate-400'} ${activeHeaderDropdown === 'result' ? 'rotate-180' : ''}`} />
+                  </div>
+
+                  {activeHeaderDropdown === 'result' && (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setActiveHeaderDropdown(null)} />
+                      <div className="absolute right-4 mt-2.5 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-50 text-left font-semibold text-slate-700 normal-case animate-in fade-in slide-in-from-top-2 duration-150">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResultFilter("");
+                            setActiveHeaderDropdown(null);
+                          }}
+                          className={`w-full text-left px-4 py-1.5 text-xs transition ${!resultFilter ? 'bg-emerald-50 text-emerald-700 font-extrabold' : 'hover:bg-slate-50'}`}
+                        >
+                          All Results
+                        </button>
+                        <div className="max-h-48 overflow-y-auto divide-y divide-slate-50">
+                          {results.map((r) => (
+                            <button
+                              key={r}
+                              type="button"
+                              onClick={() => {
+                                setResultFilter(r);
+                                setActiveHeaderDropdown(null);
+                              }}
+                              className={`w-full text-left px-4 py-1.5 text-xs transition truncate ${resultFilter === r ? 'bg-emerald-50 text-emerald-700 font-extrabold' : 'hover:bg-slate-50'}`}
+                            >
+                              {r}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </th>
                 <th className="px-4 py-3.5">Contact No.</th>
                 <th className="px-4 py-3.5 text-center">Certificate</th>
                 <th className="px-4 py-3.5 text-center w-28 print:hidden">Actions</th>

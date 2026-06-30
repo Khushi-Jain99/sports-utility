@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { createStudent, uploadStudentPhoto } from "../api/studentApi";
+import { createStudent, uploadStudentPhoto, searchStudents } from "../api/studentApi";
 import { createAchievement, uploadCertificate } from "../api/achievementApi";
 import { User, Trophy, ArrowLeft, Upload, ImageIcon } from "lucide-react";
+import { addNotification } from "../utils/notificationHelper";
 
 interface StudentFormData {
   admissionNo: string;
@@ -60,15 +61,59 @@ export default function AddStudent() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [certificate, setCertificate] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isExistingStudent, setIsExistingStudent] = useState(false);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "admissionNo") {
+      setIsExistingStudent(false);
+      setExistingPhotoUrl(null);
+    }
   };
 
   const resetForm = () => {
     setFormData(initialState);
     setPhoto(null);
     setCertificate(null);
+    setIsExistingStudent(false);
+    setExistingPhotoUrl(null);
+  };
+
+  const handleAdmissionNoBlur = async () => {
+    const admissionNo = formData.admissionNo.trim();
+    if (!admissionNo) {
+      setIsExistingStudent(false);
+      setExistingPhotoUrl(null);
+      return;
+    }
+
+    try {
+      const res = await searchStudents(admissionNo);
+      const list = res.data.data.students || [];
+      const matchedStudent = list.find(
+        (s: any) => s.admissionNo.toLowerCase() === admissionNo.toLowerCase()
+      );
+
+      if (matchedStudent) {
+        setIsExistingStudent(true);
+        setExistingPhotoUrl(matchedStudent.photo || null);
+        setFormData((prev) => ({
+          ...prev,
+          name: matchedStudent.name || "",
+          class: matchedStudent.class || "",
+          dob: matchedStudent.dob ? matchedStudent.dob.substring(0, 10) : "",
+          phone: matchedStudent.phone || "",
+        }));
+        toast.success("Existing student profile found and loaded!");
+      } else {
+        setIsExistingStudent(false);
+        setExistingPhotoUrl(null);
+      }
+    } catch (error) {
+      console.error("Error searching for student:", error);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,6 +144,11 @@ export default function AddStudent() {
       if (certificate) await uploadCertificate(achievement._id, certificate);
 
       toast.success("Student Record Added Successfully");
+      addNotification(
+        "Athlete Added",
+        `New achievement in ${formData.game} added for ${formData.name} (${formData.admissionNo}).`,
+        "success"
+      );
       resetForm();
       navigate("/achievements");
     } catch (error: any) {
@@ -138,6 +188,12 @@ export default function AddStudent() {
             </div>
           </div>
 
+          {isExistingStudent && (
+            <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 text-xs text-amber-800 flex items-center gap-2">
+              <span className="font-semibold">Notice:</span> An existing student profile with this admission number was found. Details are locked. Changes to student details must be done through the Edit Student screen.
+            </div>
+          )}
+
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <FormField label="Admission Number" required>
@@ -146,6 +202,7 @@ export default function AddStudent() {
                   name="admissionNo"
                   value={formData.admissionNo}
                   onChange={handleChange}
+                  onBlur={handleAdmissionNoBlur}
                   required
                   placeholder="e.g. ADM/2024/001"
                   className={inputClass}
@@ -161,6 +218,7 @@ export default function AddStudent() {
                   required
                   placeholder="Full name"
                   className={inputClass}
+                  disabled={isExistingStudent}
                 />
               </FormField>
 
@@ -173,6 +231,7 @@ export default function AddStudent() {
                   required
                   placeholder="e.g. BCA, B.Sc"
                   className={inputClass}
+                  disabled={isExistingStudent}
                 />
               </FormField>
 
@@ -183,6 +242,7 @@ export default function AddStudent() {
                   value={formData.dob}
                   onChange={handleChange}
                   className={inputClass}
+                  disabled={isExistingStudent}
                 />
               </FormField>
 
@@ -194,15 +254,17 @@ export default function AddStudent() {
                   onChange={handleChange}
                   placeholder="10-digit number"
                   className={inputClass}
+                  disabled={isExistingStudent}
                 />
               </FormField>
 
               <FormField label="Student Photo">
-                <label className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl p-4 cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/20 transition group">
+                <label className={`flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-xl p-4 transition ${isExistingStudent ? "bg-slate-50 cursor-not-allowed" : "cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/20 group"}`}>
                   <input
                     type="file"
                     accept="image/*"
                     className="hidden"
+                    disabled={isExistingStudent}
                     onChange={(e) => {
                       if (e.target.files?.length) setPhoto(e.target.files[0]);
                     }}
@@ -215,13 +277,30 @@ export default function AddStudent() {
                         className="h-20 w-20 rounded-xl object-cover border-2 border-white shadow"
                       />
                       <p className="text-xs font-semibold text-emerald-700">{photo.name}</p>
-                      <p className="text-xs text-emerald-500">Click to change</p>
+                      {!isExistingStudent && <p className="text-xs text-emerald-500">Click to change</p>}
+                    </div>
+                  ) : existingPhotoUrl ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <img
+                        src={existingPhotoUrl}
+                        alt="Existing Profile"
+                        className="h-20 w-20 rounded-xl object-cover border-2 border-white shadow"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150';
+                        }}
+                      />
+                      <p className="text-xs font-semibold text-slate-600">Existing Photo</p>
+                      <p className="text-[10px] text-slate-400">Cannot edit photo here</p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-1.5 text-slate-450 group-hover:text-emerald-600 transition">
                       <ImageIcon size={24} strokeWidth={1.5} />
-                      <p className="text-xs font-medium">Click to upload photo</p>
-                      <p className="text-[11px] text-slate-400">PNG, JPG up to 2MB</p>
+                      <p className="text-xs font-medium">
+                        {isExistingStudent ? "No photo available" : "Click to upload photo"}
+                      </p>
+                      <p className="text-[11px] text-slate-400">
+                        {isExistingStudent ? "Edit via Student Profile page" : "PNG, JPG up to 2MB"}
+                      </p>
                     </div>
                   )}
                 </label>
