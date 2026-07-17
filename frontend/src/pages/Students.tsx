@@ -292,8 +292,33 @@ export default function Students() {
         <button
           onClick={loadData}
           className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-650 hover:bg-slate-50 transition cursor-pointer"
+          title="Reload Data"
         >
+          <RefreshCw size={16} className={loading ? "animate-spin text-emerald-600" : ""} />
         </button>
+      </div>
+
+      {/* Filter & Search Row (Hidden on Print) */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 print:hidden bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+        <div className="relative flex items-center w-full md:w-80">
+          <Search size={14} className="text-slate-400 absolute left-3.5" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => handleLocalSearchChange(e.target.value)}
+            placeholder="Search by name, admission no, game, competition..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9.5 pr-4 py-2.5 text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500/60 focus:bg-white transition"
+          />
+        </div>
+
+        {(search || sportFilter || venueFilter || resultFilter) && (
+          <button
+            onClick={handleResetFilters}
+            className="w-full md:w-auto text-xs font-bold text-red-650 hover:text-red-750 bg-red-50 hover:bg-red-100 border border-red-200/50 px-4 py-2.5 rounded-xl transition cursor-pointer"
+          >
+            Reset Filters
+          </button>
+        )}
       </div>
 
 
