@@ -17,34 +17,13 @@ export default function Sidebar() {
   return (
     <aside className="flex w-64 flex-col bg-white border-r border-slate-200 text-slate-700 shrink-0">
       {/* Brand / Logo Section */}
-      <div className="px-5 py-5 border-b border-slate-100">
-        <div className="flex items-center gap-3">
-          {/* Custom Green Shield SVG Logo */}
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center shrink-0 shadow-sm">
-            <svg
-              className="w-6 h-6 text-emerald-600"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-sm font-extrabold text-slate-800 leading-tight">
-              Shah Satnamji
-            </h1>
-            <p className="text-xs font-bold text-emerald-600 leading-tight">
-              College Sports
-            </p>
-          </div>
-        </div>
+      <div className="px-5 py-6 border-b border-slate-100 flex justify-center items-center">
+        {/* logo.png */}
+        <img
+          src="/logo.png"
+          alt="Shah Satnamji College Logo"
+          className="h-12 w-auto object-contain max-w-full"
+        />
       </div>
 
       {/* Nav Menu */}
@@ -75,20 +54,20 @@ export default function Sidebar() {
         </nav>
       </div>
 
-      {/* Footer Excellence Card */}
-      <div className="p-4 border-t border-slate-100">
-        <div className="bg-[#f0fdf4] border border-emerald-500/10 rounded-2xl p-4 flex flex-col gap-2 shadow-xs">
-          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-            <Trophy size={14} className="text-emerald-600" />
-          </div>
-          <div>
-            <h4 className="text-xs font-extrabold text-emerald-800">
-              Excellence in Sports
-            </h4>
-            <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
-              Celebrating every champion
-            </p>
-          </div>
+      {/* Footer Partner Branding */}
+      <div className="p-4 border-t border-slate-100 flex flex-col items-center justify-center gap-2">
+        <img
+          src="/od.png"
+          alt="Okie Dokie Logo"
+          className="h-7 w-auto object-contain"
+        />
+        <div className="text-center">
+          <p className="text-[10px] font-bold text-slate-500 flex items-center justify-center gap-1">
+            Crafted with <span className="text-rose-500">❤️</span> by <span className="font-extrabold text-slate-700">Okie Dokie</span>
+          </p>
+          <p className="text-[8px] font-extrabold text-slate-400 uppercase tracking-wider mt-0.5">
+            Haryana's No. 1 Campus Automation Partner
+          </p>
         </div>
       </div>
     </aside>
