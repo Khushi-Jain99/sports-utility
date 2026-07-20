@@ -2,7 +2,12 @@ import Student from "../models/Student";
 import Achievement from "../models/Achievement";
 
 export const getDashboardData = async () => {
+  const activeStudentIds = await Achievement.distinct("student", {
+    isDeleted: false,
+  });
+
   const totalStudents = await Student.countDocuments({
+    _id: { $in: activeStudentIds },
     isDeleted: false,
   });
 

@@ -20,3 +20,38 @@ textarea,
 button {
   font-family: inherit;
 }
+
+/* Print CSS to isolate and format the sports ERP card for PDF export */
+@media print {
+  @page {
+    margin: 0;
+  }
+  body.print-erp-only {
+    margin: 1.6cm;
+    background-color: white !important;
+  }
+  body.print-erp-only * {
+    visibility: hidden;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body.print-erp-only #sports-erp-card,
+  body.print-erp-only #sports-erp-card * {
+    visibility: visible;
+  }
+  body.print-erp-only #sports-erp-card {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body.print-erp-only .dashboard-main-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 1.5rem !important;
+  }
+}

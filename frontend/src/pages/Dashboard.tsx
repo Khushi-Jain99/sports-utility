@@ -8,6 +8,8 @@ import {
   MoreVertical,
   ChevronDown,
   Search,
+  FileDown,
+  FileSpreadsheet,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -21,6 +23,10 @@ export default function Dashboard() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Dropdown menu state for three-dots menu
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const selectedStudent = students.find((st) => st._id === selectedStudentId);
   const selectedStudentText = selectedStudent ? `${selectedStudent.name} (${selectedStudent.admissionNo})` : "";
@@ -40,6 +46,9 @@ export default function Dashboard() {
         if (selectedStudentText) {
           setSearchQuery(selectedStudentText);
         }
+      }
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -165,6 +174,39 @@ export default function Dashboard() {
     ];
   };
 
+  const handleDownloadSample = () => {
+    const link = document.createElement("a");
+    link.href = "/Development.xlsx";
+    link.download = "Development.xlsx";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Sample Excel template downloaded successfully!");
+  };
+
+  const handleExportPDF = () => {
+    if (!student) {
+      toast.error("No student record loaded to export");
+      return;
+    }
+    
+    // Add print helper class to body to isolate the ERP card
+    document.body.classList.add("print-erp-only");
+    
+    // Set document title temporarily to the student's name for a clean PDF filename
+    const originalTitle = document.title;
+    document.title = `${student.name.replace(/\s+/g, "_")}_Sports_Profile`;
+    
+    // Trigger browser print/save-as-pdf dialog
+    window.print();
+    
+    // Restore original state
+    document.title = originalTitle;
+    document.body.classList.remove("print-erp-only");
+    
+    toast.success("Profile print dialog opened!");
+  };
+
   if (loading) {
     return (
       <div className="flex h-[70vh] items-center justify-center">
@@ -189,13 +231,13 @@ export default function Dashboard() {
   const isSearching = searchQuery !== "" && searchQuery !== selectedStudentText;
   const filteredStudents = isSearching
     ? students.filter(
-        (st) =>
-          (st.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (st.admissionNo || "").toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      (st) =>
+        (st.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (st.admissionNo || "").toLowerCase().includes(searchQuery.toLowerCase())
+    )
     : students;
 
-  const athleteSport = achievements.length > 0 ? achievements[0].game : "General Sports";
+  const athleteSport = achievements.length > 0 ? achievements[0].game : "";
   const mockInventory = getMockInventory(athleteSport);
   const mockTraining = getMockTraining(athleteSport);
   const mockScholarship = getMockScholarship(student?.admissionNo);
@@ -257,11 +299,10 @@ export default function Dashboard() {
                             setSelectedStudentId(st._id);
                             setSearchOpen(false);
                           }}
-                          className={`w-full text-left px-4 py-2 text-xs font-bold transition flex items-center justify-between ${
-                            isSelected
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "text-slate-700 hover:bg-slate-50"
-                          }`}
+                          className={`w-full text-left px-4 py-2 text-xs font-bold transition flex items-center justify-between ${isSelected
+                            ? "bg-emerald-50 text-emerald-750"
+                            : "text-slate-700 hover:bg-slate-50"
+                            }`}
                         >
                           <span className="truncate">
                             {st.name} ({st.admissionNo})
@@ -278,10 +319,52 @@ export default function Dashboard() {
       </div>
 
       {/* Large Wrapper Card - Matches Image 3 Container */}
-      <div className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-sm relative">
+      <div id="sports-erp-card" className="bg-white border border-slate-200/80 rounded-3xl p-6 sm:p-8 shadow-sm relative">
         {/* Three Dots Menu Option Icon */}
-        <div className="absolute right-6 top-6 text-slate-400 hover:text-slate-600 cursor-pointer">
-          <MoreVertical size={20} />
+        <div className="absolute right-6 top-6 z-30 print:hidden" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-50 transition cursor-pointer"
+            title="Options Menu"
+          >
+            <MoreVertical size={20} />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 mt-1 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-40 animate-in fade-in slide-in-from-top-2 duration-150 divide-y divide-slate-100/80">
+              <button
+                type="button"
+                onClick={() => {
+                  handleDownloadSample();
+                  setMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-2.5 hover:bg-slate-50 transition flex items-start gap-3 group"
+              >
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition">
+                  <FileDown size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Download Template</p>
+                  <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Get sample Excel template for bulk import</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleExportPDF();
+                  setMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-2.5 hover:bg-slate-50 transition flex items-start gap-3 group"
+              >
+                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition">
+                  <FileText size={16} />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">Export as PDF</p>
+                  <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Save this athlete's sports profile as PDF</p>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ERP Main Title Header inside Card */}
@@ -297,7 +380,7 @@ export default function Dashboard() {
             <p className="text-xs font-bold text-slate-400">Loading student statistics...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 dashboard-main-grid">
             {/* LEFT COLUMN */}
             <div className="space-y-6 flex flex-col">
               {/* 1. Student/Player Profile Card */}
@@ -326,20 +409,22 @@ export default function Dashboard() {
                     {[
                       { label: "Player ID", value: student?.admissionNo },
                       { label: "Name", value: student?.name },
-                      { label: "Roll No", value: student?.admissionNo ? `23/${student.admissionNo}` : "—" },
+                      student?.rollNo ? { label: "Roll No", value: student.rollNo } : null,
                       { label: "Class", value: student?.class },
-                      { label: "Game", value: athleteSport },
-                      { label: "Contact No", value: student?.phone || "—" },
-                    ].map((field, idx) => (
-                      <div key={idx} className="flex justify-between sm:justify-start items-center">
-                        <span className="text-slate-400 font-bold text-[10px] uppercase w-24 shrink-0">
-                          {field.label}
-                        </span>
-                        <span className="text-slate-800 font-extrabold truncate">
-                          {field.value}
-                        </span>
-                      </div>
-                    ))}
+                      athleteSport ? { label: "Game", value: athleteSport } : null,
+                      student?.phone ? { label: "Contact No", value: student.phone } : null,
+                    ]
+                      .filter(Boolean)
+                      .map((field: any, idx) => (
+                        <div key={idx} className="flex justify-between sm:justify-start items-center">
+                          <span className="text-slate-400 font-bold text-[10px] uppercase w-24 shrink-0">
+                            {field.label}
+                          </span>
+                          <span className="text-slate-800 font-extrabold truncate">
+                            {field.value}
+                          </span>
+                        </div>
+                      ))}
                   </div>
                 </div>
               </div>
@@ -409,48 +494,50 @@ export default function Dashboard() {
               </div>
 
               {/* 3. Training & Attendance Card */}
-              <div className="bg-white border border-slate-200/75 rounded-2xl overflow-hidden shadow-xs">
-                {/* Orange Header */}
-                <div className="bg-[#ed8936] text-white px-5 py-3 font-bold text-xs tracking-wider">
-                  Training & Attendance
-                </div>
-                <div className="overflow-x-hidden">
-                  <table className="w-full text-xs text-left">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        <th className="px-5 py-2.5">Training ID</th>
-                        <th className="px-5 py-2.5">DATE</th>
-                        <th className="px-5 py-2.5">GAME</th>
-                        <th className="px-5 py-2.5">COACH</th>
-                        <th className="px-5 py-2.5 text-right">ATTENDANCE</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-600 font-semibold">
-                      {mockTraining.map((tr, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/50">
-                          <td className="px-5 py-3 font-mono text-[10px] text-slate-400">
-                            {tr.id}
-                          </td>
-                          <td className="px-5 py-3 font-mono text-slate-500">
-                            {tr.date}
-                          </td>
-                          <td className="px-5 py-3 text-slate-800 font-bold">
-                            {tr.game}
-                          </td>
-                          <td className="px-5 py-3">
-                            {tr.coach}
-                          </td>
-                          <td className="px-5 py-3 text-right">
-                            <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
-                              {tr.attendance}
-                            </span>
-                          </td>
+              {student?.training && (
+                <div className="bg-white border border-slate-200/75 rounded-2xl overflow-hidden shadow-xs">
+                  {/* Orange Header */}
+                  <div className="bg-[#ed8936] text-white px-5 py-3 font-bold text-xs tracking-wider">
+                    Training & Attendance
+                  </div>
+                  <div className="overflow-x-hidden">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="px-5 py-2.5">Training ID</th>
+                          <th className="px-5 py-2.5">DATE</th>
+                          <th className="px-5 py-2.5">GAME</th>
+                          <th className="px-5 py-2.5">COACH</th>
+                          <th className="px-5 py-2.5 text-right">ATTENDANCE</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-600 font-semibold">
+                        {mockTraining.map((tr, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50">
+                            <td className="px-5 py-3 font-mono text-[10px] text-slate-400">
+                              {tr.id}
+                            </td>
+                            <td className="px-5 py-3 font-mono text-slate-500">
+                              {tr.date}
+                            </td>
+                            <td className="px-5 py-3 text-slate-800 font-bold">
+                              {tr.game}
+                            </td>
+                            <td className="px-5 py-3">
+                              {tr.coach}
+                            </td>
+                            <td className="px-5 py-3 text-right">
+                              <span className="inline-block px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-100">
+                                {tr.attendance}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* RIGHT COLUMN */}
@@ -501,82 +588,86 @@ export default function Dashboard() {
               </div>
 
               {/* 5. Sports Inventory Card */}
-              <div className="bg-white border border-slate-200/75 rounded-2xl overflow-hidden shadow-xs">
-                {/* Purple Header */}
-                <div className="bg-[#9f7aea] text-white px-5 py-3 font-bold text-xs tracking-wider">
-                  Sports Inventory
-                </div>
-                <div className="overflow-x-hidden">
-                  <table className="w-full text-xs text-left">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        <th className="px-5 py-2.5">Item ID</th>
-                        <th className="px-5 py-2.5">ITEM NAME</th>
-                        <th className="px-5 py-2.5 text-center">Quantity</th>
-                        <th className="px-5 py-2.5 text-center">Quantity Issued</th>
-                        <th className="px-5 py-2.5 text-right">RETUR STATUS</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-600 font-semibold">
-                      {mockInventory.map((item, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/50">
-                          <td className="px-5 py-3 font-mono text-[10px] text-slate-400">
-                            {item.id}
-                          </td>
-                          <td className="px-5 py-3 font-extrabold text-slate-800">
-                            {item.name}
-                          </td>
-                          <td className="px-5 py-3 text-center font-mono">{item.qty}</td>
-                          <td className="px-5 py-3 text-center font-mono">{item.issued}</td>
-                          <td className="px-5 py-3 text-right">
-                            <span className="text-[10px] text-slate-500 font-semibold">
-                              {item.status}
-                            </span>
-                          </td>
+              {student?.inventory && (
+                <div className="bg-white border border-slate-200/75 rounded-2xl overflow-hidden shadow-xs">
+                  {/* Purple Header */}
+                  <div className="bg-[#9f7aea] text-white px-5 py-3 font-bold text-xs tracking-wider">
+                    Sports Inventory
+                  </div>
+                  <div className="overflow-x-hidden">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="px-5 py-2.5">Item ID</th>
+                          <th className="px-5 py-2.5">ITEM NAME</th>
+                          <th className="px-5 py-2.5 text-center">Quantity</th>
+                          <th className="px-5 py-2.5 text-center">Quantity Issued</th>
+                          <th className="px-5 py-2.5 text-right">RETURN STATUS</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-600 font-semibold">
+                        {mockInventory.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50">
+                            <td className="px-5 py-3 font-mono text-[10px] text-slate-400">
+                              {item.id}
+                            </td>
+                            <td className="px-5 py-3 font-extrabold text-slate-800">
+                              {item.name}
+                            </td>
+                            <td className="px-5 py-3 text-center font-mono">{item.qty}</td>
+                            <td className="px-5 py-3 text-center font-mono">{item.issued}</td>
+                            <td className="px-5 py-3 text-right">
+                              <span className="text-[10px] text-slate-500 font-semibold">
+                                {item.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* 6. Scholarship/Fee Concession Card */}
-              <div className="bg-white border border-slate-200/75 rounded-2xl overflow-hidden shadow-xs">
-                {/* Red Header */}
-                <div className="bg-[#e53e3e] text-white px-5 py-3 font-bold text-xs tracking-wider">
-                  Scholarship/Fee Concession
-                </div>
-                <div className="overflow-x-hidden">
-                  <table className="w-full text-xs text-left">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        <th className="px-5 py-2.5">SCHOLARSHIP ID</th>
-                        <th className="px-5 py-2.5">PLAYER ID</th>
-                        <th className="px-5 py-2.5">SCHEME NAME</th>
-                        <th className="px-5 py-2.5 text-right">YEAR</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-650 font-semibold">
-                      {mockScholarship.map((sch, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/50">
-                          <td className="px-5 py-3 font-mono text-[10px] text-slate-400">
-                            {sch.id}
-                          </td>
-                          <td className="px-5 py-3 font-extrabold text-slate-800">
-                            University Sports Quota
-                          </td>
-                          <td className="px-5 py-3">
-                            {sch.scheme}
-                          </td>
-                          <td className="px-5 py-3 text-right font-mono text-slate-500">
-                            {sch.year}
-                          </td>
+              {student?.scholarship && (
+                <div className="bg-white border border-slate-200/75 rounded-2xl overflow-hidden shadow-xs">
+                  {/* Red Header */}
+                  <div className="bg-[#e53e3e] text-white px-5 py-3 font-bold text-xs tracking-wider">
+                    Scholarship/Fee Concession
+                  </div>
+                  <div className="overflow-x-hidden">
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                          <th className="px-5 py-2.5">SCHOLARSHIP ID</th>
+                          <th className="px-5 py-2.5">PLAYER ID</th>
+                          <th className="px-5 py-2.5">SCHEME NAME</th>
+                          <th className="px-5 py-2.5 text-right w-28">YEAR</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-650 font-semibold">
+                        {mockScholarship.map((sch, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50">
+                            <td className="px-5 py-3 font-mono text-[10px] text-slate-400">
+                              {sch.id}
+                            </td>
+                            <td className="px-5 py-3 font-extrabold text-slate-800">
+                              University Sports Quota
+                            </td>
+                            <td className="px-5 py-3">
+                              {sch.scheme}
+                            </td>
+                            <td className="px-5 py-3 text-right font-mono text-slate-500">
+                              {sch.year}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         )}
