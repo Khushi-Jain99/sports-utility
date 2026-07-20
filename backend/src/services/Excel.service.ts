@@ -10,40 +10,51 @@ import { extractImages } from "../utils/excel/imageExtractor";
 import { saveImage } from "../utils/excel/imageSaver";
 
 // ----------------------
-// Get Value
+// Resolve Headers & Get Value
 // ----------------------
-const getValue = (
-    row: any,
-    field: keyof typeof COLUMN_MAPPING
-) => {
+const resolveHeaders = (rowKeys: string[]): Record<string, string> => {
+    const headerMap: Record<string, string> = {};
 
-    const config = COLUMN_MAPPING[field];
+    for (const field of Object.keys(COLUMN_MAPPING)) {
+        const config = COLUMN_MAPPING[field];
+        let found = false;
 
-    for (const key of Object.keys(row)) {
-
-        const normalizedKey = key
-            .replace(/\r/g, "")
-            .replace(/\n/g, " ")
-            .replace(/\s+/g, " ")
-            .trim()
-            .toLowerCase();
-
-        for (const alias of config.aliases) {
-
-            const normalizedAlias = alias
+        for (const key of rowKeys) {
+            const normalizedKey = key
                 .replace(/\r/g, "")
                 .replace(/\n/g, " ")
                 .replace(/\s+/g, " ")
                 .trim()
                 .toLowerCase();
 
-            if (normalizedKey === normalizedAlias) {
-                return row[key];
+            for (const alias of config.aliases) {
+                const normalizedAlias = alias
+                    .replace(/\r/g, "")
+                    .replace(/\n/g, " ")
+                    .replace(/\s+/g, " ")
+                    .trim()
+                    .toLowerCase();
+
+                if (normalizedKey === normalizedAlias) {
+                    headerMap[field] = key;
+                    found = true;
+                    break;
+                }
             }
+            if (found) break;
+        }
+
+        if (!found) {
+            headerMap[field] = field;
         }
     }
 
-    return "";
+    return headerMap;
+};
+
+const getValue = (row: any, headerMap: Record<string, string>, field: keyof typeof COLUMN_MAPPING) => {
+    const key = headerMap[field];
+    return row[key] !== undefined && row[key] !== null ? row[key] : "";
 };
 
 // ----------------------
@@ -153,83 +164,93 @@ export const uploadExcel = async (fileBuffer: Buffer) => {
             defval: "",
         });
 
+        if (excelRows.length === 0) continue;
+
+        // Resolve actual header column names from the sheet
+        const rowKeys = Object.keys(excelRows[0]);
+        const headerMap = resolveHeaders(rowKeys);
+
+        // Find 1-based column indices dynamically for images
+        const photoColIndex = rowKeys.indexOf(headerMap["photo"]) + 1;
+        const certificateColIndex = rowKeys.indexOf(headerMap["certificate"]) + 1;
+
         for (let i = 0; i < excelRows.length; i++) {
 
             const excelRow = excelRows[i];
 
             const row: StudentExcelRow = {
 
-                admissionNo: String(getValue(excelRow, "admissionNo")).trim(),
+                admissionNo: String(getValue(excelRow, headerMap, "admissionNo")).trim(),
 
-                name: String(getValue(excelRow, "name")).trim(),
+                name: String(getValue(excelRow, headerMap, "name")).trim(),
 
-                class: String(getValue(excelRow, "class")).trim(),
+                class: String(getValue(excelRow, headerMap, "class")).trim(),
 
                 dob: parseExcelDate(
-                    getValue(excelRow, "dob")
+                    getValue(excelRow, headerMap, "dob")
                 ),
 
                 phone: cleanPhone(
-                    getValue(excelRow, "phone")
+                    getValue(excelRow, headerMap, "phone")
                 ),
 
                 photo: String(
-                    getValue(excelRow, "photo")
+                    getValue(excelRow, headerMap, "photo")
                 ).trim(),
 
                 game: String(
-                    getValue(excelRow, "game")
+                    getValue(excelRow, headerMap, "game")
                 ).trim(),
 
                 competition: String(
-                    getValue(excelRow, "competition")
+                    getValue(excelRow, headerMap, "competition")
                 ).trim(),
 
                 venue: String(
-                    getValue(excelRow, "venue")
+                    getValue(excelRow, headerMap, "venue")
                 ).trim(),
 
                 date: parseExcelDate(
-                    getValue(excelRow, "date")
+                    getValue(excelRow, headerMap, "date")
                 ),
 
                 results: String(
-                    getValue(excelRow, "results")
+                    getValue(excelRow, headerMap, "results")
                 ).trim(),
 
                 certificate: String(
-                    getValue(excelRow, "certificate")
+                    getValue(excelRow, headerMap, "certificate")
                 ).trim()
 
             };
 
             const excelRowNumber = headerRow + i + 2;
 
-const photoImage = imageMap.get(`${excelRowNumber}-2`);
+            const photoImage = photoColIndex > 0 ? imageMap.get(`${excelRowNumber}-${photoColIndex}`) : null;
 
-if (photoImage && row.admissionNo) {
+            if (photoImage && row.admissionNo) {
 
-    row.photo = await saveImage({
-    folder: "photos",
-    fileName: row.admissionNo,
-    extension: photoImage.extension,
-    buffer: photoImage.buffer,
-});
+                row.photo = await saveImage({
+                    folder: "photos",
+                    fileName: row.admissionNo,
+                    extension: photoImage.extension,
+                    buffer: photoImage.buffer,
+                });
 
-}
+            }
 
-const certificateImage = imageMap.get(`${excelRowNumber}-13`);
+            const certificateImage = certificateColIndex > 0 ? imageMap.get(`${excelRowNumber}-${certificateColIndex}`) : null;
 
-if (certificateImage && row.admissionNo) {
+            if (certificateImage && row.admissionNo) {
 
-    row.certificate = await saveImage({
-    folder: "certificates",
-    fileName: `${row.admissionNo}-${Date.now()}`,
-    extension: certificateImage.extension,
-    buffer: certificateImage.buffer,
-});
+                row.certificate = await saveImage({
+                    folder: "certificates",
+                    fileName: `${row.admissionNo}-${Date.now()}`,
+                    extension: certificateImage.extension,
+                    buffer: certificateImage.buffer,
+                });
 
-}
+            }
 
             const validation = validateRow(row, i + 1);
 
